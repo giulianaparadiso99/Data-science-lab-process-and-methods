@@ -7,6 +7,18 @@ from sklearn.metrics import mean_absolute_error
 from prettytable import PrettyTable
 
 
+def print_stats(keys, values, feature):
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(8, 5))
+    plt.bar(keys, values)
+    plt.ylabel('Count')
+    plt.xlabel('Category')
+    plt.title(f'Number of Listings per {feature}')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
 def stats(df):
     category_numbers = {}
     bathroom_numbers = {}
@@ -40,25 +52,23 @@ def stats(df):
     print_stats(pets.keys(), pets.values(),"pets")
 
 
-def exploration_plots(features)
-for feature in features:
-    plt.figure(figsize=(12, 5))
-    
-    # Scatter plot: feature vs price
-    plt.subplot(1, 2, 1)
-    plt.scatter(df[feature], df["price"], alpha=0.5)
-    plt.xlabel(feature)
-    plt.ylabel("price")
-    plt.title(f"{feature} vs Price (Scatter)")
-    
-    # Histogram: average price per feature value
-    plt.subplot(1, 2, 2)
-    avg_price = df.groupby(feature)["price"].mean()
-    avg_price.plot(kind="bar")
-    plt.ylabel("Average price")
-    plt.xlabel(feature)
-    plt.title(f"Average Price by {feature} (Histogram)")
-    plt.tight_layout()
-    plt.show()
-
-
+def exploration_plots(df, features):
+    for feature in features:
+        plt.figure(figsize=(12, 5))
+        
+        # Scatter plot: feature vs price
+        plt.subplot(1, 2, 1)
+        plt.scatter(df[feature], df["price"], alpha=0.5)
+        plt.xlabel(feature)
+        plt.ylabel("price")
+        plt.title(f"{feature} vs Price (Scatter)")
+        
+        # Histogram: average price per feature value
+        plt.subplot(1, 2, 2)
+        avg_price = df.groupby(feature)["price"].mean()
+        avg_price.plot(kind="bar")
+        plt.ylabel("Average price")
+        plt.xlabel(feature)
+        plt.title(f"Average Price by {feature} (Histogram)")
+        plt.tight_layout()
+        plt.show()
