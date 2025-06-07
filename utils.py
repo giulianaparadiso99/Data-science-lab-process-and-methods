@@ -64,22 +64,12 @@ def exploration_plots(df, features):
         plt.show()
 
 
-def preprocess_basilar(df, is_eval=False):
+
+def fill_missing_values(df):
     # Fill missing values efficiently
     df["pets_allowed"] = df["pets_allowed"].fillna("no")
     df["amenities"] = df["amenities"].fillna("none")
-    df["bathrooms"] = df["bathrooms"].fillna(1)
-    df["bedrooms"] = df["bedrooms"].fillna(1)
-
-    if is_eval:
-        df["latitude"] = df["latitude"].fillna(df["latitude"].mean())
-        df["longitude"] = df["longitude"].fillna(df["longitude"].mean())
-    else:
-        df = df.dropna(subset=["latitude", "longitude"])
-
-    df = df.drop(columns="address")
-
-    return finding_cities_states(df)
+    return df
 
 # Converti lat/lon in radianti
 def to_radians(df):
@@ -105,28 +95,19 @@ def finding_cities_states(df):
     df_imputed = pd.concat([df_complete, df_missing])
     return df_imputed
 
-def outlier_removal(df):
-    df = df[(df['square_feet'] <= 6000) & (df['price'] <= 20000)]
-    return df
 
-
-def impute_by_square_feet_bins(df, sq_col='square_feet', cols_to_impute=['bathrooms', 'bedrooms'], q=10):
+def impute_by_square_feet_bins_fit_and_filter(df, sq_col='square_feet', cols_to_impute=['bathrooms', 'bedrooms'], q=10):
     """
-    Rimuove outlier in base all'IQR sulla colonna della metratura,
-    crea bin in base ai quantili, e imputa i valori mancanti in cols_to_impute 
-    con la media del bin corrispondente.
-
-    Args:
-        df (pd.DataFrame): Il dataframe da trattare.
-        sq_col (str): Nome della colonna con la metratura (default: 'square_feet').
-        cols_to_impute (list): Colonne da imputare (default: ['bathrooms', 'bedrooms']).
-        q (int): Numero di bin quantili (default: 10).
-
-    Returns:
-        pd.DataFrame: DataFrame con valori imputati.
+    Rimuove gli outlier su 'sq_col', crea bin per quantili, calcola le medie di imputazione.
+    
+    Restituisce:
+    - df filtrato (senza outlier e con size_bin)
+    - bin_means: medie per bin
+    - bins: i bin usati per qcut (serve per trasformazioni successive)
     """
+    df = df.copy()
 
-    # Step 1: Rimozione outlier con IQR
+    # Step 1: Rimozione outlier
     Q1 = df[sq_col].quantile(0.25)
     Q3 = df[sq_col].quantile(0.75)
     IQR = Q3 - Q1
@@ -134,21 +115,35 @@ def impute_by_square_feet_bins(df, sq_col='square_feet', cols_to_impute=['bathro
     upper = Q3 + 1.5 * IQR
     df_filtered = df[(df[sq_col] >= lower) & (df[sq_col] <= upper)].copy()
 
-    # Step 2: Crea bin per quantili
-    df_filtered['size_bin'] = pd.qcut(df_filtered[sq_col], q=q, duplicates='drop')
+    # Step 2: Bin quantili
+    df_filtered['size_bin'], bins = pd.qcut(df_filtered[sq_col], q=q, duplicates='drop', retbins=True)
 
-    # Step 3: Calcolo delle medie per bin
+    # Step 3: Medie per bin
     bin_means = df_filtered.groupby('size_bin')[cols_to_impute].mean()
 
-    # Step 4: Imputazione funzione
+    return df_filtered, bin_means, bins
+
+def impute_by_square_feet_bins_transform(df, bin_means, bins, sq_col='square_feet', cols_to_impute=['bathrooms', 'bedrooms']):
+    """
+    Applica l'imputazione usando i bin e le medie calcolate sul training.
+    """
+    df = df.copy()
+
+    # Crea i bin a partire dai limiti salvati
+    df['size_bin'] = pd.cut(df[sq_col], bins=bins, include_lowest=True)
+
+    # Imputa i valori mancanti riga per riga
     def impute_row(row):
         bin_label = row['size_bin']
         for col in cols_to_impute:
-            if pd.isnull(row[col]):
+            if pd.isnull(row[col]) and bin_label in bin_means.index:
                 row[col] = bin_means.loc[bin_label, col]
         return row
 
-    df_filtered = df_filtered.apply(impute_row, axis=1)
-    df_filtered.drop(columns='size_bin', inplace=True)
+    df = df.apply(impute_row, axis=1)
+    df.drop(columns='size_bin', inplace=True)
 
-    return df_filtered
+    return df
+
+
+
