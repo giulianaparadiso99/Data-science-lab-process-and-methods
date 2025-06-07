@@ -104,3 +104,7 @@ def finding_cities_states(df):
     # Ricombina dataset
     df_imputed = pd.concat([df_complete, df_missing])
     return df_imputed
+
+def outlier_removal(df):
+    df = df[df['square_feet'] <= 15000]  # Rimuovi outlier per square_feet
+    return df
