@@ -108,3 +108,47 @@ def finding_cities_states(df):
 def outlier_removal(df):
     df = df[(df['square_feet'] <= 6000) & (df['price'] <= 20000)]
     return df
+
+
+def impute_by_square_feet_bins(df, sq_col='square_feet', cols_to_impute=['bathrooms', 'bedrooms'], q=10):
+    """
+    Rimuove outlier in base all'IQR sulla colonna della metratura,
+    crea bin in base ai quantili, e imputa i valori mancanti in cols_to_impute 
+    con la media del bin corrispondente.
+
+    Args:
+        df (pd.DataFrame): Il dataframe da trattare.
+        sq_col (str): Nome della colonna con la metratura (default: 'square_feet').
+        cols_to_impute (list): Colonne da imputare (default: ['bathrooms', 'bedrooms']).
+        q (int): Numero di bin quantili (default: 10).
+
+    Returns:
+        pd.DataFrame: DataFrame con valori imputati.
+    """
+
+    # Step 1: Rimozione outlier con IQR
+    Q1 = df[sq_col].quantile(0.25)
+    Q3 = df[sq_col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+    df_filtered = df[(df[sq_col] >= lower) & (df[sq_col] <= upper)].copy()
+
+    # Step 2: Crea bin per quantili
+    df_filtered['size_bin'] = pd.qcut(df_filtered[sq_col], q=q, duplicates='drop')
+
+    # Step 3: Calcolo delle medie per bin
+    bin_means = df_filtered.groupby('size_bin')[cols_to_impute].mean()
+
+    # Step 4: Imputazione funzione
+    def impute_row(row):
+        bin_label = row['size_bin']
+        for col in cols_to_impute:
+            if pd.isnull(row[col]):
+                row[col] = bin_means.loc[bin_label, col]
+        return row
+
+    df_filtered = df_filtered.apply(impute_row, axis=1)
+    df_filtered.drop(columns='size_bin', inplace=True)
+
+    return df_filtered
