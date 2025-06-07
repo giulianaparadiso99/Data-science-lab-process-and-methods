@@ -5,8 +5,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from utilis import fill_missing_values, remove_outliers, encode_categorical_features,finding_cities_states
-from utlis import impute_by_square_feet_bins_fit_and_filter, impute_by_square_feet_bins_transform
+from utils import fill_missing_values, finding_cities_states
+from utils import impute_by_square_feet_bins_fit_and_filter, impute_by_square_feet_bins_transform
 
 def preprocessing(df_train, df_test):
 
