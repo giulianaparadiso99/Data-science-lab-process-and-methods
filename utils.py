@@ -106,5 +106,5 @@ def finding_cities_states(df):
     return df_imputed
 
 def outlier_removal(df):
-    df = df[df['square_feet'] <= 15000]  # Rimuovi outlier per square_feet
+    df = df[(df['square_feet'] <= 6000) & (df['price'] <= 20000)]
     return df
