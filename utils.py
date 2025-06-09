@@ -127,6 +127,10 @@ def impute_by_square_feet_bins_transform(df, bin_means, bins, sq_col='square_fee
     """
     Applica l'imputazione usando i bin e le medie calcolate sul training.
     """
+    """
+    Applica l'imputazione usando i bin e le medie calcolate sul training.
+    Dopo l'imputazione, riempie eventuali valori mancanti residui con la mediana della colonna.
+    """
     df = df.copy()
 
     # Crea i bin a partire dai limiti salvati
@@ -142,6 +146,10 @@ def impute_by_square_feet_bins_transform(df, bin_means, bins, sq_col='square_fee
 
     df = df.apply(impute_row, axis=1)
     df.drop(columns='size_bin', inplace=True)
+
+    # Fallback: riempi eventuali valori mancanti residui con la mediana della colonna
+    for col in cols_to_impute:
+        df[col] = df[col].fillna(df[col].median())
 
     return df
 
