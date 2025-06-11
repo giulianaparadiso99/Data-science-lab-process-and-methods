@@ -6,38 +6,65 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from utils import fill_missing_values, finding_cities_states
-from utils import impute_by_square_feet_bins_fit_and_filter, impute_by_square_feet_bins_transform
+from utils import add_square_feet_quantile, impute_by_square_feet_quantile,estimate_from_field, handle_amenities
 
-def preprocessing(df,bin_means, bins):
-
+def preprocessing_dev(df):
+    df = df.copy()
     # Filling missing values (pets allowed, amenities)
+    df = df.dropna(subset = ["latitude", "longitude"])
     df = fill_missing_values(df)
+    #df = finding_cities_states(df)
 
-    # Filling missing values (city, state)
+    df = add_square_feet_quantile(df)
+    print(f"square feet quantile: {df['square_feet_quantile']}")
+    if df['bedrooms'].isnull().any():
+        df['bedrooms'] = df.groupby('square_feet_quantile')['bedrooms'].transform(lambda x: x.fillna(x.mean()))
+    if df['bathrooms'].isnull().any():
+        df['bathrooms'] = df.groupby('square_feet_quantile')['bathrooms'].transform(lambda x: x.fillna(x.mean()))
 
-    #df= df_train.dropna(subset=["latitude", "longitude"])
-    df["latitude"] = df["latitude"].fillna(df["latitude"].mean())
-    df["longitude"] = df["longitude"].fillna(df["longitude"].mean())
-
-    print("Missing values, columns latitude:", df.isnull()["latitude"].sum())
-    print("Missing values, columns longitude:", df.isnull()["longitude"].sum())
-
-    df = finding_cities_states(df)
-
-    df = impute_by_square_feet_bins_transform(df, bin_means, bins)
-    
-    print("Missing values, columns bathrooms:", df.isnull()["bathrooms"].sum())
-    print("Missing values, columns bedrooms:", df.isnull()["bedrooms"].sum())
-
-    # Drop adrress
-    df = df.drop(columns="address")
+    df["max_from_body"], df["min_from_body"], df["std_from_body"], df["mean_from_body"] = estimate_from_field(df, "body")
+    df["max_from_title"], df["min_from_title"], df["std_from_title"], df["mean_from_title"] = estimate_from_field(df, "title")
+    df = handle_amenities(df)
 
     # PROVVISORIO PER FARE RUN
     # togliamo title, body e amenities perchè dobbiamo ancora encodarli
     # togliamo currency e pricetype perchè non è utile per il modello
-    df = df.drop(columns=["title", "body", "amenities", "currency", "price_type"])
+    df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "body"])
 
     return df
 
+def re_assign_for_eval(df, eval, feature):
+    if eval[feature].isnull().any():
+        # Get the bin edges from df's quantiles
+        quantile_bins = pd.qcut(df['square_feet'], q=10, retbins=True, duplicates='drop')[1]
+        # Assign quantiles to eval using the same bins
+        eval['square_feet_quantile'] = pd.cut(eval['square_feet'], bins=quantile_bins, labels=False, include_lowest=True)
+        # Compute means per quantile from df
+        quantile_means = df.groupby('square_feet_quantile')[feature].mean()
+        # Fill missing values in eval using the quantile means
+        mask = eval[feature].isnull()
+        eval.loc[mask, feature] = eval.loc[mask, 'square_feet_quantile'].map(quantile_means)
+    return eval
 
+def preprocessing_eval(df, eval):
+    df = df.copy()
+    eval = eval.copy()
+    
+    eval = fill_missing_values(eval)
 
+    eval = re_assign_for_eval(df,eval,"bedrooms")
+    eval = re_assign_for_eval(df,eval,"bathrooms")
+    if (eval["bathrooms"].isnull().any()):
+        eval.loc[eval["bathrooms"].isnull(), "bathrooms"] = 10
+
+    eval["max_from_body"], eval["min_from_body"], eval["std_from_body"], eval["mean_from_body"] = estimate_from_field(eval, "body")
+    eval["max_from_title"], eval["min_from_title"], eval["std_from_title"], eval["mean_from_title"] = estimate_from_field(eval, "title")
+    eval = handle_amenities(eval)
+
+    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "body"])
+    eval["latitude"] = eval["latitude"].fillna(eval["latitude"].mean())
+    eval["longitude"] = eval["longitude"].fillna(eval["longitude"].mean())
+    
+    #df = df[(df["square_feet"]<20000) & (df["price"]<40000)]
+    
+    return eval
