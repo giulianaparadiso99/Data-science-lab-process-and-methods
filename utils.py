@@ -75,11 +75,11 @@ def estimate_from_field(df, field):
         if matches:
             for value in matches:
                 match = re.findall(r'\$(\d+(?:\.\d+)?)', value)
-                values.append(float(match[0]) if match else -1)
-        max_vals.append(np.max(values) if values else -1)
-        min_vals.append(np.min(values) if values else -1)
-        std_vals.append(np.std(values) if values else -1)
-        mean_vals.append(np.mean(values) if values else -1)
+                values.append(float(match[0]) if match else 0)
+        max_vals.append(np.max(values) if values else 0)
+        min_vals.append(np.min(values) if values else 0)
+        std_vals.append(np.std(values) if values else 0)
+        mean_vals.append(np.mean(values) if values else 0)
     return max_vals, min_vals, std_vals, mean_vals
 
 def handle_amenities(df):
