@@ -10,9 +10,16 @@ from utils import add_square_feet_quantile, impute_by_square_feet_quantile,estim
 
 def preprocessing_dev(df):
     df = df.copy()
-    # Filling missing values (pets allowed, amenities)
+
+    # Dropping items with missing values in "latutude" and "longitude"
     df = df.dropna(subset = ["latitude", "longitude"])
+
+    # Filling missing values for "pets allowed" and "amenities"
     df = fill_missing_values(df)
+
+    # Outliers removal
+    #df = df[(df["square_feet"]<20000) & (df["price"]<40000)]
+
     #df = finding_cities_states(df)
 
     df = add_square_feet_quantile(df)
@@ -54,6 +61,7 @@ def preprocessing_eval(df, eval):
     
     eval = fill_missing_values(eval)
 
+    # Filling missing values for "bedroom" and "bathrooms"
     eval = re_assign_for_eval(df,eval,"bedrooms")
     eval = re_assign_for_eval(df,eval,"bathrooms")
     if (eval["bathrooms"].isnull().any()):
@@ -67,6 +75,5 @@ def preprocessing_eval(df, eval):
     eval["latitude"] = eval["latitude"].fillna(eval["latitude"].mean())
     eval["longitude"] = eval["longitude"].fillna(eval["longitude"].mean())
     
-    #df = df[(df["square_feet"]<20000) & (df["price"]<40000)]
     
     return eval
