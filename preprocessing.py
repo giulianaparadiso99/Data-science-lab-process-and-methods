@@ -18,9 +18,11 @@ def preprocessing_dev(df):
     df = add_square_feet_quantile(df)
     print(f"square feet quantile: {df['square_feet_quantile']}")
     if df['bedrooms'].isnull().any():
-        df['bedrooms'] = df.groupby('square_feet_quantile')['bedrooms'].transform(lambda x: x.fillna(x.mean()))
+        df['bedrooms'] = df.groupby('square_feet_quantile')['bedrooms'].transform(lambda x: x.fillna(x.mean()).round().astype(int))
+
     if df['bathrooms'].isnull().any():
-        df['bathrooms'] = df.groupby('square_feet_quantile')['bathrooms'].transform(lambda x: x.fillna(x.mean()))
+        df['bathrooms'] = df.groupby('square_feet_quantile')['bathrooms'].transform(lambda x: x.fillna(x.mean()).round().astype(int))
+
 
     df["max_from_body"], df["min_from_body"], df["std_from_body"], df["mean_from_body"] = estimate_from_field(df, "body")
     df["max_from_title"], df["min_from_title"], df["std_from_title"], df["mean_from_title"] = estimate_from_field(df, "title")
@@ -40,7 +42,7 @@ def re_assign_for_eval(df, eval, feature):
         # Assign quantiles to eval using the same bins
         eval['square_feet_quantile'] = pd.cut(eval['square_feet'], bins=quantile_bins, labels=False, include_lowest=True)
         # Compute means per quantile from df
-        quantile_means = df.groupby('square_feet_quantile')[feature].mean()
+        quantile_means = df.groupby('square_feet_quantile')[feature].mean().round().astype(int)
         # Fill missing values in eval using the quantile means
         mask = eval[feature].isnull()
         eval.loc[mask, feature] = eval.loc[mask, 'square_feet_quantile'].map(quantile_means)
