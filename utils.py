@@ -10,6 +10,62 @@ from collections import Counter
 from sklearn.neighbors import BallTree
 from sklearn.preprocessing import MultiLabelBinarizer
 import seaborn as sns
+from matplotlib.colors import LinearSegmentedColormap
+import geopandas as gpd
+
+
+import geopandas as gpd
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+def plot_apartment_choropleth(df, shapefile_path='geopandas_files/states/ne_110m_admin_1_states_provinces.shp'):
+    
+    # GeoDataFrame from DataFrame
+    gdf_points = gpd.GeoDataFrame(
+        df.copy(),
+        geometry=gpd.points_from_xy(df['longitude'], df['latitude']),
+        crs="EPSG:4326"
+    )
+
+    # Upload shapefiles
+    states = gpd.read_file(shapefile_path).to_crs(epsg=4326)
+
+    # Join GeoDataFrame of points with states
+    gdf_with_state = gpd.sjoin(gdf_points, states, how='left', predicate='within')
+
+    # Count apartments per state
+    state_counts = gdf_with_state['name'].value_counts().reset_index()
+    state_counts.columns = ['name', 'count']
+    states_with_counts = states.merge(state_counts, on='name', how='left')
+    states_with_counts['count'] = states_with_counts['count'].fillna(0)
+
+    # Colormap
+    custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ['#1f77b4', '#ff7f0e'])
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(9, 5))
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="3%", pad=0.1)
+
+    states_with_counts.plot(
+        column='count',
+        cmap=custom_cmap,
+        linewidth=0.4,
+        edgecolor='black',
+        legend=True,
+        ax=ax,
+        cax=cax
+    )
+
+    ax.set_title('Number of Apartment Listings by US State', fontsize=14)
+    ax.set_axis_off()
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01)
+    
+    plt.show()
+
 
     
 def compare_distributions(df1, df2, numerical_features=None):
@@ -124,41 +180,25 @@ def boxplot_features(df1, df2, numerical_features=None):
     plt.show()
 
 
-def correlation_matrix(df):
-   
-    numerical_features = df.select_dtypes(include='number').columns
+
+
+def correlation_matrix(df, target='price'):
+    numerical_features = df.select_dtypes(include='number').columns.tolist()
+    
+    if target not in numerical_features and target in df.columns:
+        numerical_features.append(target)
     
     corr = df[numerical_features].corr()
 
     plt.figure(figsize=(10, 8))
-    sns.heatmap(corr, cmap='coolwarm', annot=False)
-    plt.title("Correlation Matrix delle caratteristiche numeriche")
+    
+    colors = ['#1f77b4', '#ffffff', '#ff7f0e']
+    cmap = LinearSegmentedColormap.from_list('blue_orange', colors, N=256)
+    
+    sns.heatmap(corr, cmap=cmap, annot=True, fmt=".2f", center=0)
+    plt.title(f"Correlation Matrix between numerical features, includind the '{target}' target variable")
     plt.tight_layout()
     plt.show()
-
-
-def exploration_plots(df, features):
-    for feature in features:
-        plt.figure(figsize=(12, 5))
-        
-        # Scatter plot: feature vs price
-        plt.subplot(1, 2, 1)
-        plt.scatter(df[feature], df["price"], alpha=0.5)
-        plt.xlabel(feature)
-        plt.ylabel("price")
-        plt.title(f"{feature} vs Price (Scatter)")
-        
-        # Histogram: average price per feature value
-        plt.subplot(1, 2, 2)
-        avg_price = df.groupby(feature)["price"].mean()
-        avg_price.plot(kind="bar")
-        plt.ylabel("Average price")
-        plt.xlabel(feature)
-        plt.title(f"Average Price by {feature} (Histogram)")
-        plt.tight_layout()
-        plt.show()
-
-
 
 
 
