@@ -9,39 +9,132 @@ from prettytable import PrettyTable
 from collections import Counter
 from sklearn.neighbors import BallTree
 from sklearn.preprocessing import MultiLabelBinarizer
+import seaborn as sns
 
-def print_stats(keys, values, feature):
-    import matplotlib.pyplot as plt
+    
+def compare_distributions(df1, df2, numerical_features=None):
+   
+    if numerical_features is None:
+        numerical_features = df1.select_dtypes(include='number').columns
+    
+    numerical_features = [col for col in numerical_features if col != 'id']
 
-    keys = [str(k) for k in keys]  # Convert all keys to strings
+    num_features = len(numerical_features)
+    ncols = 2
+    nrows = (num_features + 1) // ncols
+    
+    plt.figure(figsize=(12, 5*nrows))
+    for i, col in enumerate(numerical_features, 1):
+        plt.subplot(nrows, ncols, i)
+        df1[col].hist(bins=30, density=True, alpha=0.7, color='#1f77b4', label='Development')
+        df2[col].hist(bins=30, density=True, alpha=0.7, color='#ff7f0e', label='Evaluation')
+        plt.title(f'{col} Distribution')
+        plt.legend()
 
-    plt.figure(figsize=(8, 5))
-    plt.bar(keys, values)
-    plt.ylabel('Count')
-    plt.xlabel('Category')
-    plt.title(f'Number of Listings per {feature}')
-    plt.xticks(rotation=45, ha='right')
+        plt.xlabel(col)
+        plt.ylabel('Proportion')
+
     plt.tight_layout()
     plt.show()
 
-def stats(df):
-    category_numbers = Counter(df["category"])
-    bathroom_numbers = Counter(df["bathrooms"].astype(str))
-    bedroom_numbers = Counter(df["bedrooms"].astype(str))
-    pets = Counter(df["pets_allowed"])
-    currencies = Counter(df["currency"])
-    states = Counter(df["state"])
-    cities = Counter(df["cityname"])
 
-    print_stats(category_numbers.keys(), category_numbers.values(), "category")
-    print_stats(bathroom_numbers.keys(), bathroom_numbers.values(), "bathrooms")
-    print_stats(bedroom_numbers.keys(), bedroom_numbers.values(), "bedrooms")
-    print_stats(pets.keys(), pets.values(), "pets")
-    print_stats(currencies.keys(), currencies.values(), "currencies")
-    print_stats(states.keys(), states.values(), "states")
-    print_stats(cities.keys(), cities.values(), "cities")
+
+
+#################################################
+
+
+
+def compare_categorical_distributions(df1, df2, categorical_features=None, threshold=0.01):
     
+    if categorical_features is None:
+        categorical_features = df1.select_dtypes(include='object').columns
+    
+    num_features = len(categorical_features)
+    ncols = 2
+    nrows = (num_features + 1) // ncols
+    
+    plt.figure(figsize=(12, 5*nrows))
+    for i, col in enumerate(categorical_features, 1):
+        plt.subplot(nrows, ncols, i)
+        
+        # Frequencies calculation
+        freq_df1 = df1[col].value_counts(normalize=True)
+        freq_df2 = df2[col].value_counts(normalize=True)
+        
+        # Function to group rare categories into "Other"
+        def group_rare_categories(series, threshold):
+            mask = series >= threshold
+            grouped = series[mask].copy()
+            if (~mask).any():
+                grouped['Other'] = series[~mask].sum()
+            return grouped
+        
+        freq_df1_grouped = group_rare_categories(freq_df1, threshold)
+        freq_df2_grouped = group_rare_categories(freq_df2, threshold)
+        
+        # Creation of a combined DataFrame
+        freq = pd.DataFrame({'Development': freq_df1_grouped, 'Evaluation': freq_df2_grouped}).fillna(0)
+        freq = freq.sort_index()
+        
+        # Plot
+        freq.plot(kind='bar', color=['#1f77b4', '#ff7f0e'], ax=plt.gca())    
 
+        cleaned_labels = [label.replace('$', r'\$') for label in freq.index]
+        plt.xticks(range(len(cleaned_labels)), cleaned_labels, rotation=30, ha='right')
+        plt.title(f'{col} Distribution (threshold={threshold})')
+        plt.xlabel(col)
+        plt.ylabel('Proportion')
+        plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+#################################################
+
+
+
+
+def boxplot_features(df1, df2, numerical_features=None):
+    
+    if numerical_features is None:
+        numerical_features = df1.select_dtypes(include='number').columns
+    
+    numerical_features = [col for col in numerical_features if col != 'id']
+
+    num_features = len(numerical_features)
+    ncols = 2
+    nrows = (num_features + 1) // ncols
+    
+    plt.figure(figsize=(12, 5*nrows))
+    for i, col in enumerate(numerical_features, 1):
+        plt.subplot(nrows, ncols, i)
+        data = [df1[col].dropna(), df2[col].dropna()]
+        plt.boxplot(data, patch_artist=True,
+                    boxprops=dict(facecolor='#1f77b4', color='#1f77b4'),
+                    medianprops=dict(color='black'),
+                    flierprops=dict(marker='o', color='#1f77b4'))
+        plt.xticks([1, 2], ['Development', 'Evaluation'])
+
+        plt.title(f'{col} Box Plot')
+
+    plt.tight_layout()
+    plt.show()
+
+
+def correlation_matrix(df):
+   
+    numerical_features = df.select_dtypes(include='number').columns
+    
+    corr = df[numerical_features].corr()
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr, cmap='coolwarm', annot=False)
+    plt.title("Correlation Matrix delle caratteristiche numeriche")
+    plt.tight_layout()
+    plt.show()
 
 
 def exploration_plots(df, features):
@@ -66,6 +159,14 @@ def exploration_plots(df, features):
         plt.show()
 
 
+
+
+
+#################################################
+
+
+
+
 def estimate_from_field(df, field):
     series = df[field]
     max_vals, min_vals, std_vals, mean_vals = [], [], [], []
@@ -81,6 +182,14 @@ def estimate_from_field(df, field):
         std_vals.append(np.std(values) if values else 0)
         mean_vals.append(np.mean(values) if values else 0)
     return max_vals, min_vals, std_vals, mean_vals
+
+
+
+
+#################################################
+
+
+
 
 def handle_amenities(df):
     # Cleaning and splitting amenities into lists
@@ -99,6 +208,14 @@ def handle_amenities(df):
     # Combining with original DataFrame
     df = pd.concat([df.drop(columns=['amenities']), amenities_encoded], axis=1)
     return df
+
+
+
+
+
+#################################################
+
+
 
 
 def fill_missing_values(df):
@@ -130,6 +247,14 @@ def finding_cities_states(df):
     # Reconstruction of the DataFrame
     df_imputed = pd.concat([df_complete, df_missing])
     return df_imputed
+
+
+
+
+
+#################################################
+
+
 
 
 
