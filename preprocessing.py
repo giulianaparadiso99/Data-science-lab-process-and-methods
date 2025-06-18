@@ -38,8 +38,10 @@ def preprocessing_dev(df):
     # PROVVISORIO PER FARE RUN
     # togliamo title, body e amenities perchè dobbiamo ancora encodarli
     # togliamo currency e pricetype perchè non è utile per il modello
-    df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "body"])
 
+    # df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
+    df_encoded = pd.get_dummies(df, columns=['pets_allowed', 'has_photos', 'state'], dtype=int)
+    df = df.drop(columns=["currency", "price_type", "address", "cityname", "body", "title"])
     return df
 
 def re_assign_for_eval(df, eval, feature):
@@ -71,9 +73,14 @@ def preprocessing_eval(df, eval):
     eval["max_from_title"], eval["min_from_title"], eval["std_from_title"], eval["mean_from_title"] = estimate_from_field(eval, "title")
     eval = handle_amenities(eval)
 
-    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "body"])
-    eval["latitude"] = eval["latitude"].fillna(eval["latitude"].mean())
-    eval["longitude"] = eval["longitude"].fillna(eval["longitude"].mean())
+    #eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
+    #eval["latitude"] = eval["latitude"].fillna(eval["latitude"].mean())
+    #eval["longitude"] = eval["longitude"].fillna(eval["longitude"].mean())
+
+    eval = pd.get_dummies(eval, columns=['pets_allowed', 'has_photos', 'state'], dtype=int)
+    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "body", "title"])
+
+
     
     
     return eval
