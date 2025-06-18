@@ -26,6 +26,8 @@ def preprocessing_dev(df):
     df["max_from_title"], df["min_from_title"], df["std_from_title"], df["mean_from_title"] = estimate_from_field(df, "title")
     df = handle_amenities(df)
 
+    df = df[df['price'] <= 40000]
+
     # Dropping unncessary features
     df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "category", "has_photo", "pets_allowed", "source", "fee"])
     return df

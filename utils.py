@@ -177,6 +177,74 @@ def correlation_matrix(df, target='price'):
     plt.tight_layout()
     plt.show()
 
+def compare_scatter_outliers(df, evaluate_df):
+    """
+    Generate scatter plots for selected features to compare development and evaluation datasets,
+    and help identify whether potential outliers in development should be removed.
+
+    Features plotted: bathrooms, bedrooms, square_feet, latitude, longitude, time
+    """
+    features = ['bathrooms', 'bedrooms', 'square_feet', 'latitude', 'longitude', 'time']
+
+    for feature in features:
+        if feature not in df.columns or feature not in evaluate_df.columns:
+            continue
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+        fig.suptitle(f"Scatter comparison: {feature}", fontsize=14)
+
+        # Left: development dataset with price
+        axs[0].scatter(df[feature], df['price'], alpha=0.3, label="Development", color="blue")
+        axs[0].set_title("Development (vs price)")
+        axs[0].set_xlabel(feature)
+        axs[0].set_ylabel("Price")
+        axs[0].grid(True)
+        axs[0].tick_params(axis='x', labelrotation=45)
+
+
+        # Right: evaluation dataset (feature only)
+        axs[1].scatter(evaluate_df[feature], [0]*len(evaluate_df), alpha=0.3, label="Evaluation", color="orange")
+        axs[1].set_title("Evaluation (distribution)")
+        axs[1].set_xlabel(feature)
+        axs[1].set_yticks([])
+        axs[1].grid(True)
+
+        plt.tight_layout()
+        plt.show()
+
+
+def plot_square_feet_comparison(df, evaluate_df):
+    """
+    Generate a vertical (2 rows x 1 column) plot for comparing square_feet feature.
+    Custom colors:
+    - Development: #1f77b4 (blue)
+    - Evaluation:  #ff7f0e (orange)
+    """
+    if 'square_feet' not in df.columns or 'square_feet' not in evaluate_df.columns:
+        print("Missing 'square_feet' in one of the datasets.")
+        return
+
+    fig, axs = plt.subplots(2, 1, figsize=(5, 8))  # vertical layout: narrower and taller
+    fig.suptitle("Visual Comparison of Square Footage Feature Across Datasets", fontsize=14)
+
+    # Development: scatter vs price
+    axs[0].scatter(df['square_feet'], df['price'], alpha=0.3, color='#1f77b4')
+    axs[0].set_title("Development: square_feet vs price")
+    axs[0].set_xlabel("square_feet")
+    axs[0].set_ylabel("price")
+    axs[0].grid(True)
+    axs[0].tick_params(axis='x', labelrotation=45)  # <-- Rotazione etichette asse X
+
+    # Evaluation: distribution only
+    axs[1].scatter(evaluate_df['square_feet'], [0]*len(evaluate_df), alpha=0.3, color='#ff7f0e')
+    axs[1].set_title("Evaluation: square_feet distribution")
+    axs[1].set_xlabel("square_feet")
+    axs[1].set_yticks([])
+    axs[1].grid(True)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+
 
 def estimate_from_field(df, field):
     series = df[field]
