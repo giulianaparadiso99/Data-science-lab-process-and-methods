@@ -27,7 +27,7 @@ def preprocessing_dev(df):
     df = handle_amenities(df)
 
     # Dropping unncessary features
-    df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
+    df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "category", "has_photo", "pets_allowed", "source", "fee"])
     return df
 
 def re_assign_for_eval(df, eval, feature):
@@ -60,8 +60,10 @@ def preprocessing_eval(df, eval):
     eval["max_from_title"], eval["min_from_title"], eval["std_from_title"], eval["mean_from_title"] = estimate_from_field(eval, "title")
     eval = handle_amenities(eval)
 
-    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
+    # Imputing latitude and longitude using Nominatim
     eval = impute_geolocation_with_nominatim(eval)
     eval = fill_city_state_from_coordinates(eval)
+    # Dropping unnecessary features
+    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "category", "has_photo", "pets_allowed", "source", "fee"])
     
     return eval
