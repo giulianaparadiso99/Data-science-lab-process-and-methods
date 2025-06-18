@@ -1,12 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from utils import fill_missing_values, finding_cities_states
-from utils import add_square_feet_quantile, impute_by_square_feet_quantile,estimate_from_field, handle_amenities
+from utils import fill_missing_values
+from utils import add_square_feet_quantile, estimate_from_field, handle_amenities, impute_geolocation_with_nominatim, fill_city_state_from_coordinates
 
 def preprocessing_dev(df):
     df = df.copy()
@@ -17,16 +13,11 @@ def preprocessing_dev(df):
     # Filling missing values for "pets allowed" and "amenities"
     df = fill_missing_values(df)
 
-    # Outliers removal
-    #df = df[(df["square_feet"]<20000) & (df["price"]<40000)]
-
-    #df = finding_cities_states(df)
-
+    # Filling missing values for "bedroom" and "bathrooms"
     df = add_square_feet_quantile(df)
     print(f"square feet quantile: {df['square_feet_quantile']}")
     if df['bedrooms'].isnull().any():
         df['bedrooms'] = df.groupby('square_feet_quantile')['bedrooms'].transform(lambda x: x.fillna(x.mean()).round().astype(int))
-
     if df['bathrooms'].isnull().any():
         df['bathrooms'] = df.groupby('square_feet_quantile')['bathrooms'].transform(lambda x: x.fillna(x.mean()).round().astype(int))
 
@@ -35,13 +26,8 @@ def preprocessing_dev(df):
     df["max_from_title"], df["min_from_title"], df["std_from_title"], df["mean_from_title"] = estimate_from_field(df, "title")
     df = handle_amenities(df)
 
-    # PROVVISORIO PER FARE RUN
-    # togliamo title, body e amenities perchè dobbiamo ancora encodarli
-    # togliamo currency e pricetype perchè non è utile per il modello
-
-    # df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
-    df_encoded = pd.get_dummies(df, columns=['pets_allowed', 'has_photos', 'state'], dtype=int)
-    df = df.drop(columns=["currency", "price_type", "address", "cityname", "body", "title"])
+    # Dropping unncessary features
+    df = df.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
     return df
 
 def re_assign_for_eval(df, eval, feature):
@@ -61,6 +47,7 @@ def preprocessing_eval(df, eval):
     df = df.copy()
     eval = eval.copy()
     
+    # Filling missing values for "pets_allowed" and "amenities"
     eval = fill_missing_values(eval)
 
     # Filling missing values for "bedroom" and "bathrooms"
@@ -73,14 +60,8 @@ def preprocessing_eval(df, eval):
     eval["max_from_title"], eval["min_from_title"], eval["std_from_title"], eval["mean_from_title"] = estimate_from_field(eval, "title")
     eval = handle_amenities(eval)
 
-    #eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
-    #eval["latitude"] = eval["latitude"].fillna(eval["latitude"].mean())
-    #eval["longitude"] = eval["longitude"].fillna(eval["longitude"].mean())
-
-    eval = pd.get_dummies(eval, columns=['pets_allowed', 'has_photos', 'state'], dtype=int)
-    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "body", "title"])
-
-
-    
+    eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title"])
+    eval = impute_geolocation_with_nominatim(eval)
+    eval = fill_city_state_from_coordinates(eval)
     
     return eval

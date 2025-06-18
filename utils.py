@@ -2,23 +2,15 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error
-from prettytable import PrettyTable
-from collections import Counter
-from sklearn.neighbors import BallTree
 from sklearn.preprocessing import MultiLabelBinarizer
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 import geopandas as gpd
-
-
-import geopandas as gpd
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+import re
+
 
 def plot_apartment_choropleth(df, shapefile_path='geopandas_files/states/ne_110m_admin_1_states_provinces.shp'):
     
@@ -94,12 +86,6 @@ def compare_distributions(df1, df2, numerical_features=None):
     plt.show()
 
 
-
-
-#################################################
-
-
-
 def compare_categorical_distributions(df1, df2, categorical_features=None, threshold=0.01):
     
     if categorical_features is None:
@@ -146,13 +132,6 @@ def compare_categorical_distributions(df1, df2, categorical_features=None, thres
     plt.show()
 
 
-
-
-#################################################
-
-
-
-
 def boxplot_features(df1, df2, numerical_features=None):
     
     if numerical_features is None:
@@ -180,8 +159,6 @@ def boxplot_features(df1, df2, numerical_features=None):
     plt.show()
 
 
-
-
 def correlation_matrix(df, target='price'):
     numerical_features = df.select_dtypes(include='number').columns.tolist()
     
@@ -201,12 +178,6 @@ def correlation_matrix(df, target='price'):
     plt.show()
 
 
-
-#################################################
-
-
-
-
 def estimate_from_field(df, field):
     series = df[field]
     max_vals, min_vals, std_vals, mean_vals = [], [], [], []
@@ -222,13 +193,6 @@ def estimate_from_field(df, field):
         std_vals.append(np.std(values) if values else 0)
         mean_vals.append(np.mean(values) if values else 0)
     return max_vals, min_vals, std_vals, mean_vals
-
-
-
-
-#################################################
-
-
 
 
 def handle_amenities(df):
@@ -250,52 +214,11 @@ def handle_amenities(df):
     return df
 
 
-
-
-
-#################################################
-
-
-
-
 def fill_missing_values(df):
     # Filling missing values for "pets_allowed" and "amenities"
     df["pets_allowed"] = df["pets_allowed"].fillna("no")
     df["amenities"] = df["amenities"].fillna("none")
     return df
-
-# Transforming latitude and longitude values in radians
-def to_radians(df):
-    return np.deg2rad(df[['latitude', 'longitude']].values)
-
-def finding_cities_states(df):
-    # Dividing DataFrame in two subsets, one with missing values and one without missing values
-    df_complete = df[df['cityname'].notnull() & df['state'].notnull()]
-    df_missing = df[df['cityname'].isnull() | df['state'].isnull()]
-
-    # BallTree Construction
-    tree = BallTree(to_radians(df_complete), metric='haversine')
-
-    # Finding the closest latitude/longitude record for each record with missing values
-    dist, ind = tree.query(to_radians(df_missing), k=1)
-
-    # Imputing missing values
-    nearest_neighbors = df_complete.iloc[ind.flatten()]
-    df_missing.loc[:, 'cityname'] = nearest_neighbors['cityname'].values
-    df_missing.loc[:, 'state'] = nearest_neighbors['state'].values
-
-    # Reconstruction of the DataFrame
-    df_imputed = pd.concat([df_complete, df_missing])
-    return df_imputed
-
-
-
-
-
-#################################################
-
-
-
 
 
 def add_square_feet_quantile(df, sq_col='square_feet', n_quantiles=10, new_col='square_feet_quantile'):
@@ -325,5 +248,75 @@ def impute_by_square_feet_quantile(df, quantiles, quantile_means, sq_col='square
         df.loc[mask, col_to_impute] = quantile_means[i]
     return df
 
+# Initialize geocoder
+geolocator = Nominatim(user_agent="ds-lab-project")
+geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
+def build_query_string(title, body):
+    text = f"{title} {body}"
+
+    # Looking for ZIP code
+    zip_match = re.search(r'\b\d{5}\b', text)
+    if zip_match:
+        zip_code = zip_match.group(0)
+        return f"{zip_code} USA"
+
+    # Looking for cityname and state
+    city_state_match = re.search(r'\b([A-Z][a-z]+)\s([A-Z]{2})\b', text)
+    if city_state_match:
+        return f"{city_state_match.group(1)}, {city_state_match.group(2)}"
+
+    return None  # fallback
+
+def forward_geocode_from_text(title, body):
+    query = build_query_string(title, body)
+    if query:
+        location = geocode(query)
+        if location:
+            return {
+                'latitude': location.latitude,
+                'longitude': location.longitude,
+                'address': location.raw.get('display_name', ''),
+                'city': location.raw.get('address', {}).get('city') or
+                        location.raw.get('address', {}).get('town') or
+                        location.raw.get('address', {}).get('village'),
+                'state': location.raw.get('address', {}).get('state')
+            }
+    return None
+
+def impute_geolocation_with_nominatim(df):
+    df = df.copy()
+
+    for idx, row in df[df[['latitude', 'longitude', 'cityname', 'state']].isna().all(axis=1)].iterrows():
+        result = forward_geocode_from_text(row['title'], row['body'])
+        if result:
+            df.at[idx, 'latitude'] = result['latitude']
+            df.at[idx, 'longitude'] = result['longitude']
+            df.at[idx, 'cityname'] = result['city']
+            df.at[idx, 'state'] = result['state']
+            print(f"Imputato {idx}: {result['latitude']}, {result['longitude']}, {result['city']}, {result['state']}")
+        else:
+            print(f"Nessun risultato per {idx}")
+
+    return df
+
+def fill_city_state_from_coordinates(df):
+    # Iniziatilize geocoder and rate limiter
+    geolocator = Nominatim(user_agent="ds-lab-project")
+    reverse = RateLimiter(geolocator.reverse, min_delay_seconds=1)
+
+    # Function for reverse geocoding
+    def reverse_lookup(row):
+        if pd.isna(row['cityname']) or pd.isna(row['state']):
+            location = reverse((row['latitude'], row['longitude']), exactly_one=True)
+            if location and location.raw.get('address'):
+                address = location.raw['address']
+                city = address.get('city') or address.get('town') or address.get('village')
+                state = address.get('state')
+                return pd.Series([city, state])
+        return pd.Series([row['cityname'], row['state']])
+
+    # Applying the function only to items with non-null latitude and longitude
+    df[['cityname', 'state']] = df.apply(reverse_lookup, axis=1)
+    return df
 
