@@ -11,6 +11,7 @@ Files
 - `preprocessing.py`: contains the preprocessing functions applied to both `development` and `evaluation` datasets.
 - `utils.py`: utility functions used throughout the project. Includes helper functions for preprocessing and for creating visualizations.
 - `report.pdf`: final report describing the methodology, preprocessing steps, models used, and results.
+- `geopandas_files/`: directory containing shapefiles used for geographic visualizations.
 
 
 ## Requirements
