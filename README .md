@@ -7,11 +7,11 @@ Files
 - `development.csv`: training data with the target variable `price`.
 - `evaluation.csv`: test data without the target variable.
 - `main.ipynb`: main notebook used for preprocessing, model training, hyperparameter tuning, and prediction.
-- `predictions.csv`: submission file containing the predictions for the evaluation set.
 - `preprocessing.py`: contains the preprocessing functions applied to both `development` and `evaluation` datasets.
 - `utils.py`: utility functions used throughout the project. Includes helper functions for preprocessing and for creating visualizations.
-- `report.pdf`: final report describing the methodology, preprocessing steps, models used, and results.
 - `geopandas_files/`: directory containing shapefiles used for geographic visualizations.
+- `predictions.csv`: submission file containing the predictions for the evaluation set.
+- `report.pdf`: final report describing the methodology, preprocessing steps, models used, and results.
 
 
 ## Requirements
