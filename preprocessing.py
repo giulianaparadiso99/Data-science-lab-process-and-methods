@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import fill_missing_values
-from utils import add_square_feet_quantile, estimate_from_field, handle_amenities, impute_geolocation_with_nominatim, fill_city_state_from_coordinates
+from utils import add_square_feet_quantile, estimate_from_field, handle_amenities, impute_geolocation_with_nominatim
 
 def preprocessing_dev(df):
     df = df.copy()
@@ -64,7 +64,7 @@ def preprocessing_eval(df, eval):
 
     # Imputing latitude and longitude using Nominatim
     eval = impute_geolocation_with_nominatim(eval)
-    eval = fill_city_state_from_coordinates(eval)
+    
     # Dropping unnecessary features
     eval = eval.drop(columns=["currency", "price_type", "address", "cityname", "state", "body", "title", "category", "has_photo", "pets_allowed", "source", "fee"])
     

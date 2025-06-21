@@ -9,7 +9,6 @@ import geopandas as gpd
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
-import re
 
 
 def plot_apartment_choropleth(df, shapefile_path='geopandas_files/states/ne_110m_admin_1_states_provinces.shp'):
@@ -34,7 +33,7 @@ def plot_apartment_choropleth(df, shapefile_path='geopandas_files/states/ne_110m
     states_with_counts['count'] = states_with_counts['count'].fillna(0)
 
     # Colormap
-    custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ['#1f77b4', '#ff7f0e'])
+    custom_color_map = LinearSegmentedColormap.from_list("custom_cmap", ['#1f77b4', '#ff7f0e'])
 
     # Plot
     fig, ax = plt.subplots(figsize=(9, 5))
@@ -43,7 +42,7 @@ def plot_apartment_choropleth(df, shapefile_path='geopandas_files/states/ne_110m
 
     states_with_counts.plot(
         column='count',
-        cmap=custom_cmap,
+        cmap=custom_color_map,
         linewidth=0.4,
         edgecolor='black',
         legend=True,
@@ -55,7 +54,6 @@ def plot_apartment_choropleth(df, shapefile_path='geopandas_files/states/ne_110m
     ax.set_axis_off()
     plt.tight_layout()
     plt.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01)
-    
     plt.show()
 
 
@@ -68,12 +66,12 @@ def compare_distributions(df1, df2, numerical_features=None):
     numerical_features = [col for col in numerical_features if col != 'id']
 
     num_features = len(numerical_features)
-    ncols = 2
-    nrows = (num_features + 1) // ncols
+    num_cols = 2
+    num_rows = (num_features + 1) // num_cols
     
-    plt.figure(figsize=(12, 5*nrows))
+    plt.figure(figsize=(12, 5*num_rows))
     for i, col in enumerate(numerical_features, 1):
-        plt.subplot(nrows, ncols, i)
+        plt.subplot(num_rows, num_cols, i)
         df1[col].hist(bins=30, density=True, alpha=0.7, color='#1f77b4', label='Development')
         df2[col].hist(bins=30, density=True, alpha=0.7, color='#ff7f0e', label='Evaluation')
         plt.title(f'{col} Distribution')
@@ -92,18 +90,18 @@ def compare_categorical_distributions(df1, df2, categorical_features=None, thres
         categorical_features = df1.select_dtypes(include='object').columns
     
     num_features = len(categorical_features)
-    ncols = 2
-    nrows = (num_features + 1) // ncols
+    num_cols = 2
+    num_rows = (num_features + 1) // num_cols
     
-    plt.figure(figsize=(12, 5*nrows))
+    plt.figure(figsize=(12, 5*num_rows))
     for i, col in enumerate(categorical_features, 1):
-        plt.subplot(nrows, ncols, i)
+        plt.subplot(num_rows, num_cols, i)
         
         # Frequencies calculation
         freq_df1 = df1[col].value_counts(normalize=True)
         freq_df2 = df2[col].value_counts(normalize=True)
         
-        # Function to group rare categories into "Other"
+        # Function to group rare categories into "Other" category
         def group_rare_categories(series, threshold):
             mask = series >= threshold
             grouped = series[mask].copy()
@@ -132,58 +130,25 @@ def compare_categorical_distributions(df1, df2, categorical_features=None, thres
     plt.show()
 
 
-def boxplot_features(df1, df2, numerical_features=None):
-    
-    if numerical_features is None:
-        numerical_features = df1.select_dtypes(include='number').columns
-    
-    numerical_features = [col for col in numerical_features if col != 'id']
-
-    num_features = len(numerical_features)
-    ncols = 2
-    nrows = (num_features + 1) // ncols
-    
-    plt.figure(figsize=(12, 5*nrows))
-    for i, col in enumerate(numerical_features, 1):
-        plt.subplot(nrows, ncols, i)
-        data = [df1[col].dropna(), df2[col].dropna()]
-        plt.boxplot(data, patch_artist=True,
-                    boxprops=dict(facecolor='#1f77b4', color='#1f77b4'),
-                    medianprops=dict(color='black'),
-                    flierprops=dict(marker='o', color='#1f77b4'))
-        plt.xticks([1, 2], ['Development', 'Evaluation'])
-
-        plt.title(f'{col} Box Plot')
-
-    plt.tight_layout()
-    plt.show()
-
-
 def correlation_matrix(df, target='price'):
     numerical_features = df.select_dtypes(include='number').columns.tolist()
     
     if target not in numerical_features and target in df.columns:
         numerical_features.append(target)
     
-    corr = df[numerical_features].corr()
+    correlation = df[numerical_features].corr(method='spearman')
 
     plt.figure(figsize=(10, 8))
     
     colors = ['#1f77b4', '#ffffff', '#ff7f0e']
     cmap = LinearSegmentedColormap.from_list('blue_orange', colors, N=256)
     
-    sns.heatmap(corr, cmap=cmap, annot=True, fmt=".2f", center=0)
+    sns.heatmap(correlation, cmap=cmap, annot=True, fmt=".2f", center=0)
     plt.title(f"Correlation Matrix between numerical features, includind the '{target}' target variable")
     plt.tight_layout()
     plt.show()
 
 def compare_scatter_outliers(df, evaluate_df):
-    """
-    Generate scatter plots for selected features to compare development and evaluation datasets,
-    and help identify whether potential outliers in development should be removed.
-
-    Features plotted: bathrooms, bedrooms, square_feet, latitude, longitude, time
-    """
     features = ['bathrooms', 'bedrooms', 'square_feet', 'latitude', 'longitude', 'time']
 
     for feature in features:
@@ -195,16 +160,15 @@ def compare_scatter_outliers(df, evaluate_df):
 
         # Left: development dataset with price
         axs[0].scatter(df[feature], df['price'], alpha=0.3, label="Development", color="blue")
-        axs[0].set_title("Development (vs price)")
+        axs[0].set_title("Development")
         axs[0].set_xlabel(feature)
         axs[0].set_ylabel("Price")
         axs[0].grid(True)
         axs[0].tick_params(axis='x', labelrotation=45)
 
-
         # Right: evaluation dataset (feature only)
         axs[1].scatter(evaluate_df[feature], [0]*len(evaluate_df), alpha=0.3, label="Evaluation", color="orange")
-        axs[1].set_title("Evaluation (distribution)")
+        axs[1].set_title("Evaluation")
         axs[1].set_xlabel(feature)
         axs[1].set_yticks([])
         axs[1].grid(True)
@@ -214,17 +178,12 @@ def compare_scatter_outliers(df, evaluate_df):
 
 
 def plot_square_feet_comparison(df, evaluate_df):
-    """
-    Generate a vertical (2 rows x 1 column) plot for comparing square_feet feature.
-    Custom colors:
-    - Development: #1f77b4 (blue)
-    - Evaluation:  #ff7f0e (orange)
-    """
+    
     if 'square_feet' not in df.columns or 'square_feet' not in evaluate_df.columns:
         print("Missing 'square_feet' in one of the datasets.")
         return
 
-    fig, axs = plt.subplots(2, 1, figsize=(5, 8))  # vertical layout: narrower and taller
+    fig, axs = plt.subplots(2, 1, figsize=(5, 8))
     fig.suptitle("Visual Comparison of Square Footage Feature Across Datasets", fontsize=14)
 
     # Development: scatter vs price
@@ -233,7 +192,7 @@ def plot_square_feet_comparison(df, evaluate_df):
     axs[0].set_xlabel("square_feet")
     axs[0].set_ylabel("price")
     axs[0].grid(True)
-    axs[0].tick_params(axis='x', labelrotation=45)  # <-- Rotazione etichette asse X
+    axs[0].tick_params(axis='x', labelrotation=45)  
 
     # Evaluation: distribution only
     axs[1].scatter(evaluate_df['square_feet'], [0]*len(evaluate_df), alpha=0.3, color='#ff7f0e')
@@ -290,9 +249,6 @@ def fill_missing_values(df):
 
 
 def add_square_feet_quantile(df, sq_col='square_feet', n_quantiles=10, new_col='square_feet_quantile'):
-    """
-    Adds a new feature to the dataframe indicating the quantile bin of the square_feet column.
-    """
     df = df.copy()
     # Assigning quantile labels (from 0 to n_quantiles-1)
     df[new_col] = pd.qcut(df[sq_col], q=n_quantiles, labels=False, duplicates='drop')
@@ -300,13 +256,6 @@ def add_square_feet_quantile(df, sq_col='square_feet', n_quantiles=10, new_col='
 
 
 def impute_by_square_feet_quantile(df, quantiles, quantile_means, sq_col='square_feet', col_to_impute='bathrooms'):
-    """
-    Impute missing values in col_to_impute using the mean of each square_feet quantile group.
-    - quantiles: array-like, the bin edges (as from pd.qcut(..., retbins=True))
-    - quantile_means: list or array, mean value for each quantile (same order as quantiles bins)
-    - sq_col: the column to use for quantile assignment (default 'square_feet')
-    - col_to_impute: the column to fill missing values in
-    """
     df = df.copy()
     # Assigning quantile index to each row
     quantile_idx = pd.cut(df[sq_col], bins=quantiles, labels=False, include_lowest=True)
@@ -334,7 +283,7 @@ def build_query_string(title, body):
     if city_state_match:
         return f"{city_state_match.group(1)}, {city_state_match.group(2)}"
 
-    return None  # fallback
+    return None
 
 def forward_geocode_from_text(title, body):
     query = build_query_string(title, body)
@@ -367,24 +316,3 @@ def impute_geolocation_with_nominatim(df):
             print(f"Nessun risultato per {idx}")
 
     return df
-
-def fill_city_state_from_coordinates(df):
-    # Iniziatilize geocoder and rate limiter
-    geolocator = Nominatim(user_agent="ds-lab-project")
-    reverse = RateLimiter(geolocator.reverse, min_delay_seconds=1)
-
-    # Function for reverse geocoding
-    def reverse_lookup(row):
-        if pd.isna(row['cityname']) or pd.isna(row['state']):
-            location = reverse((row['latitude'], row['longitude']), exactly_one=True)
-            if location and location.raw.get('address'):
-                address = location.raw['address']
-                city = address.get('city') or address.get('town') or address.get('village')
-                state = address.get('state')
-                return pd.Series([city, state])
-        return pd.Series([row['cityname'], row['state']])
-
-    # Applying the function only to items with non-null latitude and longitude
-    df[['cityname', 'state']] = df.apply(reverse_lookup, axis=1)
-    return df
-
